@@ -2,6 +2,7 @@
 The turtle_adventure module maintains all classes related to the Turtle's
 adventure game.
 """
+import random
 from turtle import RawTurtle
 from gamelib import Game, GameElement
 
@@ -242,43 +243,161 @@ class Enemy(TurtleGameElement):
         )
 
 
-# TODO
-# * Define your enemy classes
-# * Implement all methods required by the GameElement abstract class
-# * Define enemy's update logic in the update() method
-# * Check whether the player hits this enemy, then call the
-#   self.game.game_over_lose() method in the TurtleAdventureGame class.
-class DemoEnemy(Enemy):
-    """
-    Demo enemy
-    """
+class RandomWalkEnemy(Enemy):
+    """Random Walk Enemy that will walk randomly on the screen."""
 
-    def __init__(self,
-                 game: "TurtleAdventureGame",
-                 size: int,
-                 color: str):
+    def __init__(self, game: "TurtleAdventureGame", size: int, color: str, speed: int):
         super().__init__(game, size, color)
+        self.__id = None
+        self.__x_speed = speed
+        self.__y_speed = speed
 
     def create(self) -> None:
-        pass
+        self.__id = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
 
     def update(self) -> None:
-        pass
+        if self.x + self.__x_speed > 800 or self.x + self.__x_speed < 0:
+            self.__x_speed *= -1
+        if self.y + self.__y_speed > 500 or self.y + self.__y_speed < 0:
+            self.__y_speed *= -1
+
+        self.x += self.__x_speed
+        self.y += self.__y_speed
+
+        if self.hits_player():
+            self.game.game_over_lose()
 
     def render(self) -> None:
-        pass
+        self.canvas.coords(self.__id, self.x - self.size/2, self.y - self.size/2,
+                           self.x + self.size/2, self.y + self.size/2)
 
     def delete(self) -> None:
         pass
 
 
-# TODO
-# Complete the EnemyGenerator class by inserting code to generate enemies
-# based on the given game level; call TurtleAdventureGame's add_enemy() method
-# to add enemies to the game at certain points in time.
-#
-# Hint: the 'game' parameter is a tkinter's frame, so it's after()
-# method can be used to schedule some future events.
+class ChasingEnemy(Enemy):
+    """Chasing Enemy that will try chasing the player."""
+
+    def __init__(self, game: "TurtleAdventureGame", size: int, color: str, speed: int):
+        super().__init__(game, size, color)
+        self.__id = None
+        self.__x_speed = speed
+        self.__y_speed = speed
+
+    def create(self) -> None:
+        self.__id = self.canvas.create_rectangle(0, 0, 0, 0, fill=self.color)
+
+    def update(self) -> None:
+        if self.x < self.game.player.x:
+            self.x += self.__x_speed
+        if self.x > self.game.player.x:
+            self.x -= self.__x_speed
+        if self.y < self.game.player.y:
+            self.y += self.__y_speed
+        if self.y > self.game.player.y:
+            self.y -= self.__y_speed
+
+        if self.hits_player():
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__id, self.x - self.size/2, self.y - self.size/2,
+                           self.x + self.size/2, self.y + self.size/2)
+
+    def delete(self) -> None:
+        pass
+
+
+class FencingEnemy(Enemy):
+    """Fencing Enemy that will walk around the home in a square-like pattern."""
+
+    def __init__(self, game: "TurtleAdventureGame", size: int, color: str, speed: int):
+        super().__init__(game, size, color)
+        self.__id = None
+        self.__speed = speed
+
+    def create(self) -> None:
+        self.__id = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
+
+    def update(self) -> None:
+        if self.x == self.game.home.x + self.game.home.size/2 and self.y >= self.game.home.y - self.game.home.size/2:
+            self.y -= self.__speed
+        if self.y == self.game.home.y - self.game.home.size/2 and self.x >= self.game.home.x - self.game.home.size/2:
+            self.x -= self.__speed
+        if self.x == self.game.home.x - self.game.home.size/2 and self.y <= self.game.home.y + self.game.home.size/2:
+            self.y += self.__speed
+        if self.y == self.game.home.y + self.game.home.size/2 and self.x <= self.game.home.x + self.game.home.size:
+            self.x += self.__speed
+
+        if self.hits_player():
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__id, self.x - self.size/2, self.y - self.size/2,
+                           self.x + self.size/2, self.y + self.size/2)
+
+    def delete(self) -> None:
+        pass
+
+
+class BomberEnemy(Enemy):
+    """Bomber Enemy that will explode in specific time."""
+
+    def __init__(self, game: "TurtleAdventureGame", size: int, color: str):
+        super().__init__(game, size, color)
+        self.__id = None
+        self.__is_safe = False
+
+    def create(self) -> None:
+        self.__id = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
+        self.game.after(1000, self.detonate)
+
+    def detonate(self) -> None:
+        create_explosion = Explosion(self.game, 25, "red")
+        create_explosion.x = self.x
+        create_explosion.y = self.y
+        self.game.add_element(create_explosion)
+        self.delete()
+
+    def update(self) -> None:
+        if self.hits_player() and not self.__is_safe:
+            self.detonate()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__id, self.x - self.size/2, self.y - self.size/2,
+                           self.x + self.size/2, self.y + self.size/2)
+
+    def delete(self) -> None:
+        self.__is_safe = True
+        self.canvas.delete(self.__id)
+
+
+class Explosion(Enemy):
+    """Explosion is the explosion of a BomberEnemy"""
+
+    def __init__(self, game: "TurtleAdventureGame", size: int, color: str):
+        super().__init__(game, size, color)
+        self.__id = None
+        self.__delta_size = 0
+        self.__is_safe = False
+        self.game.after(1000, self.delete)
+
+    def create(self) -> None:
+        self.__id = self.canvas.create_oval(0, 0, 0, 0, fill=self.color)
+
+    def update(self) -> None:
+        self.__delta_size += self.game.level
+        if self.hits_player() and not self.__is_safe:
+            self.game.game_over_lose()
+
+    def render(self) -> None:
+        self.canvas.coords(self.__id, self.x - (self.size+self.__delta_size)/2, self.y - (self.size+self.__delta_size)/2,
+                           self.x + (self.size+self.__delta_size)/2, self.y + (self.size+self.__delta_size)/2)
+
+    def delete(self) -> None:
+        self.__is_safe = True
+        self.canvas.delete(self.__id)
+
 
 class EnemyGenerator:
     """
@@ -290,8 +409,10 @@ class EnemyGenerator:
         self.__game: TurtleAdventureGame = game
         self.__level: int = level
 
-        # example
-        self.__game.after(100, self.create_enemy)
+        self.__game.after(100, self.create_enemy_random_walk)
+        self.__game.after(200, self.create_enemy_chasing)
+        self.__game.after(100, self.create_enemy_fencing)
+        self.__game.after(500, self.create_enemy_bomber)
 
     @property
     def game(self) -> "TurtleAdventureGame":
@@ -307,14 +428,49 @@ class EnemyGenerator:
         """
         return self.__level
 
-    def create_enemy(self) -> None:
+    def create_enemy_random_walk(self) -> None:
         """
-        Create a new enemy, possibly based on the game level
+        Create a new enemy(s) that randomly walk, possibly based on the game level
         """
-        new_enemy = DemoEnemy(self.__game, 20, "red")
-        new_enemy.x = 100
-        new_enemy.y = 100
-        self.game.add_element(new_enemy)
+        for _ in range(self.game.level):
+            new_enemy = RandomWalkEnemy(self.__game, 20, "purple", 3*self.game.level)
+            new_enemy.x = random.randint(10, 800)
+            new_enemy.y = random.randint(10, 500)
+            self.game.add_element(new_enemy)
+        self.__game.after(5000, self.create_enemy_random_walk)
+
+    def create_enemy_chasing(self) -> None:
+        """
+        Create a new enemy(s) that will chase player, possibly based on the game level
+        """
+        for _ in range(self.game.level):
+            new_enemy = ChasingEnemy(self.__game, 20, "blue", self.game.level)
+            new_enemy.x = random.randint(10, 800)
+            new_enemy.y = random.randint(10, 500)
+            self.game.add_element(new_enemy)
+        self.__game.after(6000, self.create_enemy_chasing)
+
+    def create_enemy_fencing(self) -> None:
+        """
+        Create a new enemy(s) that will walk around home, possibly based on the game level
+        """
+        for _ in range(self.game.level):
+            new_enemy = FencingEnemy(self.__game, 10, "orange", self.game.level)
+            new_enemy.x = self.game.home.x + self.game.home.size/2
+            new_enemy.y = self.game.home.y + self.game.home.size/2
+            self.game.add_element(new_enemy)
+        self.__game.after(6000, self.create_enemy_fencing)
+
+    def create_enemy_bomber(self) -> None:
+        """
+        Create a new enemy(s) that will explode, possibly based on the game level
+        """
+        for _ in range(self.game.level):
+            new_enemy = BomberEnemy(self.__game, 15, "black")
+            new_enemy.x = random.randint(10, 700)
+            new_enemy.y = random.randint(10, 400)
+            self.game.add_element(new_enemy)
+        self.__game.after(6000, self.create_enemy_bomber)
 
 
 class TurtleAdventureGame(Game): # pylint: disable=too-many-ancestors
