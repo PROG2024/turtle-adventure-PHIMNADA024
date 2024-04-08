@@ -272,7 +272,7 @@ class RandomWalkEnemy(Enemy):
                            self.x + self.size/2, self.y + self.size/2)
 
     def delete(self) -> None:
-        pass
+        self.canvas.delete(self.__id)
 
 
 class ChasingEnemy(Enemy):
@@ -305,7 +305,7 @@ class ChasingEnemy(Enemy):
                            self.x + self.size/2, self.y + self.size/2)
 
     def delete(self) -> None:
-        pass
+        self.canvas.delete(self.__id)
 
 
 class FencingEnemy(Enemy):
@@ -337,7 +337,7 @@ class FencingEnemy(Enemy):
                            self.x + self.size/2, self.y + self.size/2)
 
     def delete(self) -> None:
-        pass
+        self.canvas.delete(self.__id)
 
 
 class BomberEnemy(Enemy):
